@@ -141,7 +141,7 @@ export default function App() {
   const [selMonth,   setSelMonth]  = useState(todayStr().slice(0, 7));
   const [txMonth,    setTxMonth]   = useState(todayStr().slice(0, 7));
   const [expandedTx, setExpandedTx]= useState(null);
-  const [noKey,      setNoKey]     = useState(false);
+
 
   const bottomRef = useRef();
   const fileRef   = useRef();
@@ -183,17 +183,10 @@ export default function App() {
   };
   const clearImg = () => { setImgData(null); setImgPrev(null); };
 
-  /* get API key */
-  const getApiKey = () => import.meta.env.VITE_ANTHROPIC_KEY || cfg.apiKey || "";
-
   /* send */
   const send = useCallback(async () => {
     const text = input.trim();
     if ((!text && !imgData) || thinking) return;
-
-    const apiKey = getApiKey();
-    if (!apiKey) { setNoKey(true); setPanel("settings"); return; }
-    setNoKey(false);
 
     const userMsg = { id:`u_${Date.now()}`, role:"user", type:imgData?"image":"text", text, imgPrev, ts:Date.now() };
     setMsgs(p => [...p, userMsg]);
@@ -206,13 +199,10 @@ export default function App() {
     let reply = "Oke!"; let newTxs = []; let actions = [];
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:2000, system:buildSystem(), messages:[{ role:"user", content }] })
       });
@@ -516,18 +506,11 @@ export default function App() {
             {panel==="settings" && (
               <div>
                 <div style={{ fontSize:16,fontWeight:600,color:"#111827",marginBottom:4 }}>Pengaturan</div>
-                <div style={{ fontSize:12,color:"#6B7280",marginBottom:20 }}>Masukkan API Key agar app bisa berjalan.</div>
-
-                {noKey && (
-                  <div style={{ background:"#FEF2F2",border:"0.5px solid #FCA5A5",borderRadius:10,padding:"11px 13px",marginBottom:16 }}>
-                    <div style={{ fontSize:12,color:"#B91C1C",fontWeight:500 }}>⚠️ API Key belum diisi — app tidak bisa memproses pesan.</div>
-                  </div>
-                )}
+                <div style={{ fontSize:12,color:"#6B7280",marginBottom:20 }}>Nama app dan koneksi opsional.</div>
 
                 {[
-                  { key:"appName",  label:"Nama App",          ph:"Keuanganku",       type:"text",     mono:false },
-                  { key:"apiKey",   label:"Anthropic API Key",  ph:"sk-ant-api03-...", type:"password", mono:true  },
-                  { key:"webhookUrl",label:"Google Sheets URL (opsional)", ph:"https://script.google.com/...", type:"url", mono:true },
+                  { key:"appName",   label:"Nama App",                     ph:"Keuanganku",                    type:"text", mono:false },
+                  { key:"webhookUrl",label:"Google Sheets URL (opsional)", ph:"https://script.google.com/...", type:"url",  mono:true  },
                 ].map(f => (
                   <div key={f.key} style={{ marginBottom:14 }}>
                     <div style={{ fontSize:12,color:"#374151",fontWeight:500,marginBottom:5 }}>{f.label}</div>
@@ -537,13 +520,7 @@ export default function App() {
                   </div>
                 ))}
 
-                <div style={{ background:"#F0FDF9",border:"0.5px solid #A7F3D0",borderRadius:10,padding:"11px 13px",marginBottom:16 }}>
-                  <div style={{ fontSize:12,color:"#065F46",lineHeight:1.7 }}>
-                    API Key didapat dari <strong>console.anthropic.com</strong> → API Keys → Create Key
-                  </div>
-                </div>
-
-                <div style={{ fontSize:11,color:"#9CA3AF" }}>
+<div style={{ fontSize:11,color:"#9CA3AF" }}>
                   {txList.length} transaksi tersimpan ·{" "}
                   <span onClick={() => { if(window.confirm("Hapus semua data?")){ lsSet(TX_KEY,[]); setTxList([]); } }} style={{ color:"#EF4444",cursor:"pointer" }}>Reset data</span>
                 </div>
