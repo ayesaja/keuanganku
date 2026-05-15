@@ -1,39 +1,40 @@
 const https = require("https");
 
-exports.handler = async (event) => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Content-Type": "application/json",
+const HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+
+function chatReply(text) {
+  return {
+    statusCode: 200,
+    headers: HEADERS,
+    body: JSON.stringify({
+      content: [{ type: "text", text: JSON.stringify({ reply: text, transactions: [], actions: [] }) }]
+    })
   };
+}
 
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
-  }
-
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
-  }
+exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers: HEADERS, body: "" };
+  if (event.httpMethod !== "POST") return { statusCode: 405, headers: HEADERS, body: JSON.stringify({ error: "Method not allowed" }) };
 
   const apiKey = process.env.ANTHROPIC_KEY;
-  if (!apiKey) {
-    return {
-      statusCode: 200, headers,
-      body: JSON.stringify({
-        content: [{ type: "text", text: JSON.stringify({
-          reply: "⚠️ API key tidak ditemukan. Cek environment variable ANTHROPIC_KEY di Netlify.",
-          transactions: [], actions: []
-        })}]
-      })
-    };
-  }
+  if (!apiKey) return chatReply("⚠️ ANTHROPIC_KEY tidak ada di server. Cek Environment Variables di Netlify.");
+
+  let parsedBody;
+  try { parsedBody = JSON.parse(event.body); }
+  catch (e) { return chatReply("⚠️ Request tidak valid: " + e.message); }
+
+  // Force model ke yang paling kompatibel
+  parsedBody.model = "claude-3-haiku-20240307";
+  const requestBody = JSON.stringify(parsedBody);
 
   try {
-    const requestBody = event.body;
-
     const result = await new Promise((resolve, reject) => {
-      const options = {
+      const req = https.request({
         hostname: "api.anthropic.com",
         path: "/v1/messages",
         method: "POST",
@@ -43,30 +44,23 @@ exports.handler = async (event) => {
           "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
         },
-      };
-
-      const req = https.request(options, (res) => {
+      }, (res) => {
         let data = "";
-        res.on("data", (chunk) => { data += chunk; });
+        res.on("data", (c) => { data += c; });
         res.on("end", () => resolve({ status: res.statusCode, body: data }));
       });
-
       req.on("error", reject);
       req.write(requestBody);
       req.end();
     });
 
-    return { statusCode: result.status, headers, body: result.body };
+    if (result.status !== 200) {
+      return chatReply(`⚠️ Anthropic error ${result.status}: ${result.body}`);
+    }
 
-  } catch (error) {
-    return {
-      statusCode: 200, headers,
-      body: JSON.stringify({
-        content: [{ type: "text", text: JSON.stringify({
-          reply: "Gagal terhubung ke server. Error: " + error.message,
-          transactions: [], actions: []
-        })}]
-      })
-    };
+    return { statusCode: 200, headers: HEADERS, body: result.body };
+
+  } catch (err) {
+    return chatReply("⚠️ Koneksi gagal: " + err.message);
   }
 };
