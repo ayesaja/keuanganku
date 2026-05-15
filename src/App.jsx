@@ -112,7 +112,7 @@ export default function App() {
           "anthropic-version":"2023-06-01",
           "anthropic-dangerous-direct-browser-access":"true",
         },
-        body: JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:10,messages:[{role:"user",content:"hi"}]})
+        body: JSON.stringify({model:"claude-3-5-sonnet-20241022",max_tokens:10,messages:[{role:"user",content:"hi"}]})
       });
       if (res.status === 401) { setKeyError("API Key salah atau tidak aktif."); setSavingKey(false); return; }
       lsSet("fin-api-key", key);
@@ -150,7 +150,7 @@ export default function App() {
           "anthropic-version":"2023-06-01",
           "anthropic-dangerous-direct-browser-access":"true",
         },
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,system:buildSystem(),messages:[{role:"user",content}]})
+        body:JSON.stringify({model:"claude-3-5-sonnet-20241022",max_tokens:2000,system:buildSystem(),messages:[{role:"user",content}]})
       });
       const d=await res.json();
       const raw=(d.content?.[0]?.text||"").replace(/```[a-z]*/gi,"").replace(/```/g,"").trim();
