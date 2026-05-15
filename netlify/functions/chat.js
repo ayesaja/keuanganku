@@ -29,7 +29,7 @@ exports.handler = async (event) => {
   catch (e) { return chatReply("⚠️ Request tidak valid: " + e.message); }
 
   // Force model ke yang paling kompatibel
-  parsedBody.model = "claude-3-haiku-20240307";
+  parsedBody.model = "claude-haiku-4-5-20251001";
   const requestBody = JSON.stringify(parsedBody);
 
   try {
