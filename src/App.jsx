@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, Camera, BarChart2, Settings, X, Check, List, Trash2, Key } from "lucide-react";
+import { Send, Camera, BarChart2, Settings, X, Check, List, Trash2 } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 const PARENT_CATS = [
@@ -47,19 +47,14 @@ ${catBlock}
 BALAS HANYA JSON (tanpa backtick):
 {"reply":"respon singkat 1-2 kalimat casual bahasa Indonesia","transactions":[{"merchant":"nama","amount":15000,"category":"id_parent","subcategory":"id_sub","date":"YYYY-MM-DD","items":"deskripsi"}],"actions":[{"type":"update_category","keyword":"kata kunci merchant","new_category":"id_parent","new_subcategory":"id_sub"}]}
 
-Transaksi baru -> "transactions". Edit kategori -> "actions". Kalau kosong: []. Tanggal hari ini: ${todayStr()}. Amount = integer rupiah.`;
+Transaksi baru -> "transactions". Edit -> "actions". Kalau kosong: []. Tanggal hari ini: ${todayStr()}. Amount = integer rupiah.`;
 };
 
-/* ════════════════════════════════════════════════════ */
 export default function App() {
   const [msgs,       setMsgs]      = useState([]);
   const [txList,     setTxList]    = useState([]);
   const [cfg,        setCfg]       = useState({});
   const [loaded,     setLoaded]    = useState(false);
-  const [apiKey,     setApiKey]    = useState("");
-  const [keyInput,   setKeyInput]  = useState("");
-  const [keyError,   setKeyError]  = useState("");
-  const [savingKey,  setSavingKey] = useState(false);
   const [input,      setInput]     = useState("");
   const [imgData,    setImgData]   = useState(null);
   const [imgPrev,    setImgPrev]   = useState(null);
@@ -81,47 +76,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const tx  = lsGet(TX_KEY)  || [];
-    const c   = lsGet(CFG_KEY) || {};
-    const key = lsGet("fin-api-key") || "";
-    setTxList(tx); setCfg(c); setApiKey(key);
+    setTxList(lsGet(TX_KEY)||[]);
+    setCfg(lsGet(CFG_KEY)||{});
     setLoaded(true);
-    if (key) {
-      setMsgs([{id:"w",role:"agent",type:"text",ts:Date.now(),
-        text:"Halo! 👋 Kirim pengeluaranmu — aku catat otomatis.\n\nContoh:\n• \"makan dadakan di warteg 15rb\"\n• \"bensin pertamini 50000\"\n• \"SPP anak bulan ini 750000\"\n• Upload foto struk atau screenshot mutasi"}]);
-    }
+    setMsgs([{id:"w",role:"agent",type:"text",ts:Date.now(),
+      text:"Halo! 👋 Kirim pengeluaranmu — aku catat otomatis.\n\nContoh:\n• \"makan dadakan di warteg 15rb\"\n• \"bensin pertamini 50000\"\n• \"SPP anak bulan ini 750000\"\n• Upload foto struk atau screenshot mutasi"}]);
   }, []);
 
   useEffect(() => {
     setTimeout(()=>bottomRef.current?.scrollIntoView({behavior:"smooth"}),60);
   }, [msgs, thinking]);
 
-  const saveTx  = (l) => { setTxList(l);  lsSet(TX_KEY,l); };
-  const saveCfg = (c) => { setCfg(c);     lsSet(CFG_KEY,c); };
-
-  const saveApiKey = async () => {
-    const key = keyInput.trim();
-    if (!key.startsWith("sk-ant-")) { setKeyError("API Key tidak valid. Harus dimulai dengan sk-ant-"); return; }
-    setSavingKey(true); setKeyError("");
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "x-api-key": key,
-          "anthropic-version":"2023-06-01",
-          "anthropic-dangerous-direct-browser-access":"true",
-        },
-        body: JSON.stringify({model:"claude-3-5-sonnet-20241022",max_tokens:10,messages:[{role:"user",content:"hi"}]})
-      });
-      if (res.status === 401) { setKeyError("API Key salah atau tidak aktif."); setSavingKey(false); return; }
-      lsSet("fin-api-key", key);
-      setApiKey(key);
-      setMsgs([{id:"w",role:"agent",type:"text",ts:Date.now(),
-        text:"Halo! 👋 Kirim pengeluaranmu — aku catat otomatis.\n\nContoh:\n• \"makan dadakan di warteg 15rb\"\n• \"bensin pertamini 50000\"\n• \"SPP anak bulan ini 750000\"\n• Upload foto struk atau screenshot mutasi"}]);
-    } catch { setKeyError("Gagal terhubung. Cek koneksi internet."); }
-    setSavingKey(false);
-  };
+  const saveTx  = (l) => { setTxList(l); lsSet(TX_KEY,l); };
+  const saveCfg = (c) => { setCfg(c);    lsSet(CFG_KEY,c); };
 
   const pickImage = (file) => {
     if(!file)return;
@@ -129,7 +96,7 @@ export default function App() {
     r.onload=(e)=>{const f=e.target.result;setImgPrev(f);setImgData({data:f.split(",")[1],type:file.type});};
     r.readAsDataURL(file);
   };
-  const clearImg=()=>{setImgData(null);setImgPrev(null);};
+  const clearImg = () => { setImgData(null); setImgPrev(null); };
 
   const send = useCallback(async () => {
     const text=input.trim();
@@ -142,15 +109,15 @@ export default function App() {
       :text;
     let reply="Oke!"; let newTxs=[]; let actions=[];
     try {
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
+      const res=await fetch("/.netlify/functions/chat",{
         method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "x-api-key":apiKey,
-          "anthropic-version":"2023-06-01",
-          "anthropic-dangerous-direct-browser-access":"true",
-        },
-        body:JSON.stringify({model:"claude-3-5-sonnet-20241022",max_tokens:2000,system:buildSystem(),messages:[{role:"user",content}]})
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-3-5-sonnet-20241022",
+          max_tokens:2000,
+          system:buildSystem(),
+          messages:[{role:"user",content}]
+        })
       });
       const d=await res.json();
       const raw=(d.content?.[0]?.text||"").replace(/```[a-z]*/gi,"").replace(/```/g,"").trim();
@@ -164,7 +131,8 @@ export default function App() {
       }));
       actions=obj.actions||[];
     } catch(e) {
-      reply="Hmm, ada gangguan koneksi. Coba lagi ya.";
+      reply="Hmm, ada gangguan. Coba lagi ya.";
+      console.error(e);
     }
     let updatedTx=[...newTxs,...txList];
     const actionLog=[];
@@ -183,7 +151,7 @@ export default function App() {
     setMsgs(p=>[...p,{id:`a_${Date.now()}`,role:"agent",type:newTxs.length>0?"transactions":"text",text:finalReply,transactions:newTxs,ts:Date.now()}]);
     setThinking(false);
     setTimeout(()=>inputRef.current?.focus(),80);
-  },[input,imgData,thinking,txList,apiKey]);
+  },[input,imgData,thinking,txList]);
 
   const onKey=(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
   const updateTx=(id,patch)=>saveTx(txList.map(t=>t.id===id?{...t,...patch}:t));
@@ -197,41 +165,11 @@ export default function App() {
   const catVal    =(t)=>`${t.category}||${t.subcategory}`;
   const parseCatVal=(v)=>{const[c,s]=v.split("||");return{category:c,subcategory:s};};
 
-  if(!loaded) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100dvh",fontFamily:"DM Sans,sans-serif",color:"#9CA3AF",fontSize:14}}>Memuat...</div>;
-
-  /* ── SETUP SCREEN ── */
-  if(!apiKey) return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100dvh",maxWidth:400,margin:"0 auto",padding:"0 24px",fontFamily:"'DM Sans',sans-serif",background:"#F5F2ED"}}>
-      <div style={{width:56,height:56,borderRadius:16,background:"#111827",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}>
-        <Key size={24} color="#34D399"/>
-      </div>
-      <h1 style={{fontSize:22,fontWeight:600,color:"#111827",margin:"0 0 8px",textAlign:"center"}}>Keuanganku</h1>
-      <p style={{fontSize:14,color:"#6B7280",textAlign:"center",margin:"0 0 32px",lineHeight:1.6}}>Masukkan Anthropic API Key untuk mulai menggunakan app ini.</p>
-      <input
-        value={keyInput} onChange={e=>setKeyInput(e.target.value)}
-        onKeyDown={e=>{if(e.key==="Enter")saveApiKey();}}
-        placeholder="sk-ant-api03-..."
-        type="password"
-        style={{width:"100%",fontSize:13,padding:"12px 14px",borderRadius:10,border:"1px solid #E5E7EB",background:"#fff",color:"#111827",boxSizing:"border-box",fontFamily:"'DM Mono',monospace",outline:"none",marginBottom:8}}/>
-      {keyError&&<p style={{fontSize:12,color:"#EF4444",margin:"0 0 12px",alignSelf:"flex-start"}}>{keyError}</p>}
-      <button onClick={saveApiKey} disabled={savingKey||!keyInput.trim()}
-        style={{width:"100%",padding:"12px 0",fontSize:14,fontWeight:600,background:savingKey||!keyInput.trim()?"#D1FAE5":"#059669",color:"#fff",border:"none",borderRadius:10,cursor:savingKey||!keyInput.trim()?"default":"pointer",marginBottom:20}}>
-        {savingKey?"Mengecek key...":"Mulai"}
-      </button>
-      <div style={{background:"#F0FDF9",border:"0.5px solid #A7F3D0",borderRadius:10,padding:"12px 14px",width:"100%",boxSizing:"border-box"}}>
-        <p style={{fontSize:12,color:"#065F46",margin:0,lineHeight:1.7}}>
-          <strong>Cara dapat API Key:</strong><br/>
-          1. Buka console.anthropic.com<br/>
-          2. Login → API Keys → Create Key<br/>
-          3. Copy dan paste di atas
-        </p>
-      </div>
-    </div>
-  );
+  if(!loaded) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100dvh",color:"#9CA3AF",fontSize:14}}>Memuat...</div>;
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100dvh",maxWidth:480,margin:"0 auto",fontFamily:"'DM Sans',sans-serif",background:"#F5F2ED",position:"relative",overflow:"hidden"}}>
-      {/* HEADER */}
+
       <div style={{background:"#111827",padding:"0 16px",height:56,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
         <div>
           <div style={{color:"#fff",fontWeight:600,fontSize:15}}>{cfg.appName||"Keuanganku"}</div>
@@ -247,14 +185,13 @@ export default function App() {
         </div>
       </div>
 
-      {/* CHAT */}
       <div style={{flex:1,overflowY:"auto",padding:"14px 12px",display:"flex",flexDirection:"column",gap:10}}>
         {msgs.map(msg=>(
           <div key={msg.id} style={{display:"flex",justifyContent:msg.role==="agent"?"flex-start":"flex-end"}}>
             <div style={{maxWidth:"85%"}}>
               <div style={msg.role==="agent"
                 ?{background:"#fff",borderRadius:"4px 14px 14px 14px",padding:"10px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",fontSize:14,color:"#111827",lineHeight:1.55}
-                :{background:"#059669",borderRadius:"14px 4px 14px 14px",padding:"10px 14px",fontSize:14,color:"#fff",lineHeight:1.55,boxShadow:"0 2px 8px rgba(5,150,105,0.25)"}}>
+                :{background:"#059669",borderRadius:"14px 4px 14px 14px",padding:"10px 14px",fontSize:14,color:"#fff",lineHeight:1.55}}>
                 {msg.imgPrev&&<img src={msg.imgPrev} alt="" style={{maxWidth:200,borderRadius:8,marginBottom:msg.text?6:0,display:"block"}}/>}
                 {msg.text&&<span style={{whiteSpace:"pre-wrap"}}>{msg.text}</span>}
                 {msg.type==="transactions"&&msg.transactions?.length>0&&(
@@ -425,20 +362,14 @@ export default function App() {
             {panel==="settings"&&(
               <div>
                 <div style={{fontSize:16,fontWeight:600,color:"#111827",marginBottom:4}}>Pengaturan</div>
-                <div style={{fontSize:12,color:"#6B7280",marginBottom:20}}>Ubah nama app atau ganti API key.</div>
-                <div style={{marginBottom:14}}>
-                  <div style={{fontSize:12,color:"#374151",fontWeight:500,marginBottom:5}}>Nama App</div>
-                  <input defaultValue={cfg.appName||""} placeholder="Keuanganku" onBlur={e=>saveCfg({...cfg,appName:e.target.value})} style={{width:"100%",fontSize:12,padding:"9px 12px",borderRadius:8,border:"0.5px solid #E5E7EB",background:"#F9FAFB",color:"#111827",boxSizing:"border-box",outline:"none"}}/>
-                </div>
+                <div style={{fontSize:12,color:"#6B7280",marginBottom:16}}>Ubah nama app.</div>
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:12,color:"#374151",fontWeight:500,marginBottom:5}}>Ganti API Key</div>
-                  <input type="password" placeholder="sk-ant-..." onBlur={e=>{if(e.target.value.trim()){lsSet("fin-api-key",e.target.value.trim());setApiKey(e.target.value.trim());}}} style={{width:"100%",fontSize:12,padding:"9px 12px",borderRadius:8,border:"0.5px solid #E5E7EB",background:"#F9FAFB",color:"#111827",boxSizing:"border-box",fontFamily:"'DM Mono',monospace",outline:"none"}}/>
+                  <div style={{fontSize:12,color:"#374151",fontWeight:500,marginBottom:5}}>Nama App</div>
+                  <input defaultValue={cfg.appName||""} placeholder="Keuanganku" onBlur={e=>saveCfg({...cfg,appName:e.target.value})} style={{width:"100%",fontSize:13,padding:"9px 12px",borderRadius:8,border:"0.5px solid #E5E7EB",background:"#F9FAFB",color:"#111827",boxSizing:"border-box",outline:"none"}}/>
                 </div>
                 <div style={{fontSize:11,color:"#9CA3AF"}}>
                   {txList.length} transaksi tersimpan ·{" "}
                   <span onClick={()=>{if(window.confirm("Hapus semua data?")){lsSet(TX_KEY,[]);setTxList([]);}}} style={{color:"#EF4444",cursor:"pointer"}}>Reset data</span>
-                  {" · "}
-                  <span onClick={()=>{if(window.confirm("Logout? API Key akan dihapus.")){lsSet("fin-api-key","");setApiKey("");}}} style={{color:"#EF4444",cursor:"pointer"}}>Logout</span>
                 </div>
               </div>
             )}
